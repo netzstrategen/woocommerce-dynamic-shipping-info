@@ -2,7 +2,7 @@
 
 /*
   Plugin Name: Woocommerce Dynamic Shipping Info
-  Version: 1.40.3
+  Version: 1.0.0
   Text Domain: woocommerce-dynamic-shipping-info
   Description: Updates alternative shipping information dynamically.
   Author: netzstrategen
