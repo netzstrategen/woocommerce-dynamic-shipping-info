@@ -7,110 +7,150 @@
 
 namespace Netzstrategen\WoocommerceDynamicShippingInfo;
 
-use WC_Admin_Settings;
-
 /**
  * Administrative back-end functionality.
  */
 class Admin {
 
   /**
-   * Adds plugin settings tab and fields.
-   *
-   * @param array $settings
-   *   The WooCommerce settings.
+   * Plugin backend initialization method.
+   */
+  public static function init() {
+    self::add_options_page();
+    self::add_field_group();
+  }
+
+  /**
+   * Adds plugin settings page.
+   */
+  public static function add_options_page() {
+
+    acf_add_options_page(
+      [
+        'page_title' => __('Dynamic Shipping Info', Plugin::L10N),
+        'menu_title' => __('Dynamic Shipping Info', Plugin::L10N),
+        'menu_slug' => 'dynamic-shipping-info',
+        'capability' => 'edit_posts',
+        'redirect' => FALSE,
+        'parent_slug' => 'woocommerce',
+      ]
+    );
+  }
+
+  /**
+   * Adds plugin settings fields.
+   */
+  public static function add_field_group() {
+
+    if (function_exists('acf_add_local_field_group')) :
+
+      acf_add_local_field_group(
+        [
+          'key' => Plugin::PREFIX . "_acf_field_group",
+          'title' => __('Dynamic Shipping Info', Plugin::L10N),
+          'fields' => [
+            [
+              'key' => 'dynamic_shipping_info_rule_repeater',
+              'name' => 'dynamic_shipping_info_rule',
+              'type' => 'repeater',
+              'layout' => 'block',
+              'button_label' => __('Add new dynamic shipping info rule', Plugin::L10N),
+              'sub_fields' => [
+                [
+                  'key' => 'shipping_info',
+                  'label' => __('Shipping info text', Plugin::L10N),
+                  'name' => 'shipping_info',
+                  'type' => 'text',
+                  'required' => 1,
+                ],
+                [
+                  'key' => 'min_price',
+                  'label' => __('Min price', Plugin::L10N),
+                  'name' => 'min_price',
+                  'type' => 'number',
+                  'required' => 1,
+                ],
+                [
+                  'key' => 'country',
+                  'label' => __('Countries', Plugin::L10N),
+                  'name' => 'country',
+                  'type' => 'select',
+                  'choices' => self::get_shipping_countries(),
+                  'default_value' => [],
+                  'allow_null' => 0,
+                  'multiple' => 1,
+                  'required' => 1,
+                  'ui' => 1,
+                  'return_format' => 'value',
+                ],
+                [
+                  'key' => 'shipping_class',
+                  'label' => __('Shipping Class', Plugin::L10N),
+                  'name' => 'shipping_class',
+                  'type' => 'select',
+                  'choices' => self::get_shipping_classes(),
+                  'default_value' => [],
+                  'allow_null' => 0,
+                  'multiple' => 1,
+                  'ui' => 1,
+                  'return_format' => 'value',
+                ],
+              ],
+            ],
+          ],
+          'location' => [
+            [
+              [
+                'param' => 'options_page',
+                'operator' => '==',
+                'value' => 'dynamic-shipping-info',
+              ],
+            ],
+          ],
+        ]
+      );
+
+    endif;
+  }
+
+  /**
+   * Gets dynamic shipping info rules sorted by price.
    *
    * @return array
-   *   The extended WooCommerce settings.
+   *   Array of sorted ACF defined shipping info rules.
    */
-  public static function woocommerce_get_settings_pages(array $settings): array {
-    add_action('woocommerce_settings_tabs_array', __CLASS__ . '::woocommerce_settings_tabs_array', 30);
-    add_action('woocommerce_settings_dynamic_shipping_info', __CLASS__ . '::woocommerce_settings_dynamic_shipping_info');
-    add_action('woocommerce_settings_save_dynamic_shipping_info', __CLASS__ . '::woocommerce_settings_save_dynamic_shipping_info');
-    return $settings;
+  public static function get_sorted_by_price_dynamic_shipping_rules() {
+    $shipping_rules = get_field('dynamic_shipping_info_rule', 'option') ?: [];
+    usort($shipping_rules, function ($a, $b) {
+      return $b['min_price'] <=> $a['min_price']  ;
+    });
+    return $shipping_rules;
+
   }
 
   /**
-   * Defines plugin configuration settings.
-   */
-  public static function getSettings(): array {
-    return apply_filters('woocommerce_get_settings_dynamic_shipping_info', []);
-  }
-
-  /**
-   * Adds a 'Dynamic Shipping Info' section tab.
-   *
-   * @implements woocommerce_settings_tabs_array
-   */
-  public static function woocommerce_settings_tabs_array(array $tabs): array {
-    $tabs['dynamic_shipping_info'] = __('Dynamic Shipping Info', Plugin::L10N);
-    return $tabs;
-  }
-
-  /**
-   * Adds settings fields to corresponding WooCommerce settings section.
-   *
-   * @implements woocommerce_settings_<current_tab>
-   */
-  public static function woocommerce_settings_dynamic_shipping_info() {
-    $settings = static::getSettings();
-    WC_Admin_Settings::output_fields($settings);
-  }
-
-  /**
-   * Triggers setting save.
-   *
-   * @implements woocommerce_settings_save_<current_tab>
-   */
-  public static function woocommerce_settings_save_dynamic_shipping_info() {
-    $settings = static::getSettings();
-    WC_Admin_Settings::save_fields($settings);
-  }
-
-  /**
-   * Creates plugin settings fields.
-   *
-   * @param array $settings
-   *   The WooCommerce settings.
+   * Get countries that the store ships to.
    *
    * @return array
-   *   Extended WooCommerce settings.
-   *
-   * @implements woocommerce_get_settings_dynamic_shipping
+   *   Array of shipping countries from Woocommerce.
    */
-  public static function woocommerce_get_settings_dynamic_shipping_info(array $settings): array {
-    $settings[] = [
-      'type' => 'title',
-      'name' => __('Dynamic Shipping Info Settings', Plugin::L10N),
-    ];
-    for ($i = 0; $i <= Plugin::LIMITS; $i++) {
-      if ($i === 0) {
-        $settings[] = [
-          'id' => '_' . Plugin::PREFIX . '_price_step_info_0',
-          'type' => 'textarea',
-          'name' => __('Shipping info:', Plugin::L10N),
-          'desc_tip' => __('Text label to display automatically when price is below first price step.', Plugin::L10N),
-        ];
-        continue;
-      }
-      $settings[] = [
-        'id' => '_' . Plugin::PREFIX . '_price_limit_step_' . $i,
-        'type' => 'text',
-        'name' => __('Price limit step ' . $i .':', Plugin::L10N),
-        'desc_tip' => __('The price limit step over which the shipping info will change to the one below.', Plugin::L10N),
-      ];
-      $settings[] = [
-        'id' => '_' . Plugin::PREFIX . '_price_step_info_' . $i,
-        'type' => 'textarea',
-        'name' => __('Shipping info:', Plugin::L10N),
-        'desc_tip' => __('Text label to display automatically when price is above previous price step.', Plugin::L10N),
-      ];
-    }
-    $settings[] = [
-      'type' => 'sectionend',
-      'id' => Plugin::PREFIX,
-    ];
-    return $settings;
+  public static function get_shipping_countries() {
+    return WC()->countries->get_shipping_countries() ?? [];
+
+  }
+
+  /**
+   * Get array of slug and name value pair of Shipping classes.
+   *
+   * @return array
+   *   Array containing the slug and name of the shipping class.
+   */
+  public static function get_shipping_classes() {
+    return array_reduce(WC()->shipping->get_shipping_classes() ?? [], function ($result, $item) {
+      $result[$item->slug] = $item->name;
+      return $result;
+    }, []);
+
   }
 
 }
