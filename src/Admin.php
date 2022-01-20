@@ -57,35 +57,9 @@ class Admin {
               'button_label' => __('Add new dynamic shipping info rule', Plugin::L10N),
               'sub_fields' => [
                 [
-                  'key' => 'shipping_info',
-                  'label' => __('Shipping info text', Plugin::L10N),
-                  'name' => 'shipping_info',
-                  'type' => 'text',
-                  'required' => 1,
-                ],
-                [
-                  'key' => 'min_price',
-                  'label' => __('Min price', Plugin::L10N),
-                  'name' => 'min_price',
-                  'type' => 'number',
-                  'required' => 1,
-                ],
-                [
-                  'key' => 'country',
-                  'label' => __('Countries', Plugin::L10N),
-                  'name' => 'country',
-                  'type' => 'select',
-                  'choices' => self::get_shipping_countries(),
-                  'default_value' => [],
-                  'allow_null' => 0,
-                  'multiple' => 1,
-                  'required' => 1,
-                  'ui' => 1,
-                  'return_format' => 'value',
-                ],
-                [
                   'key' => 'shipping_class',
                   'label' => __('Shipping Class', Plugin::L10N),
+                  'instructions' => __('Leave empty if you want this rule to apply for all products without a shipping class asigned.', Plugin::L10N),
                   'name' => 'shipping_class',
                   'type' => 'select',
                   'choices' => self::get_shipping_classes(),
@@ -94,6 +68,43 @@ class Admin {
                   'multiple' => 1,
                   'ui' => 1,
                   'return_format' => 'value',
+                ],
+                [
+                  'key' => 'shipping_class_inner_rules',
+                  'label' => __('Shipping Class Inner Rules', Plugin::L10N),
+                  'name' => 'shipping_class_inner_rules',
+                  'type' => 'repeater',
+                  'layout' => 'block',
+                  'button_label' => 'Add rule',
+                  'sub_fields' => [
+                    [
+                      'key' => 'shipping_info',
+                      'label' => __('Shipping info text', Plugin::L10N),
+                      'name' => 'shipping_info',
+                      'type' => 'text',
+                      'required' => 1,
+                    ],
+                    [
+                      'key' => 'min_price',
+                      'label' => __('Min price', Plugin::L10N),
+                      'name' => 'min_price',
+                      'type' => 'number',
+                      'required' => 1,
+                    ],
+                    [
+                      'key' => 'country',
+                      'label' => __('Countries', Plugin::L10N),
+                      'name' => 'country',
+                      'type' => 'select',
+                      'choices' => self::get_shipping_countries(),
+                      'default_value' => [],
+                      'allow_null' => 0,
+                      'multiple' => 1,
+                      'required' => 1,
+                      'ui' => 1,
+                      'return_format' => 'value',
+                    ],
+                  ],
                 ],
               ],
             ],
@@ -114,22 +125,21 @@ class Admin {
   }
 
   /**
-   * Gets dynamic shipping info rules sorted by price.
+   * Gets dynamic shipping info rules ordered by shipping class name.
    *
    * @return array
-   *   Array of sorted ACF defined shipping info rules.
+   *   Array of defined dynamic shipping info rules ordered by shipping class name.
    */
-  public static function get_sorted_by_price_dynamic_shipping_rules() {
-    $shipping_rules = get_field('dynamic_shipping_info_rule', 'option') ?: [];
-    usort($shipping_rules, function ($a, $b) {
-      return $b['min_price'] <=> $a['min_price']  ;
+  public static function get_dynamic_shipping_rules() {
+    $dynamic_shipping_info_rule = get_field('dynamic_shipping_info_rule', 'option') ?: [];
+    usort($dynamic_shipping_info_rule, function ($a, $b) {
+      return $b['shipping_class'] <=> $a['shipping_class'];
     });
-    return $shipping_rules;
-
+    return $dynamic_shipping_info_rule;
   }
 
   /**
-   * Get countries that the store ships to.
+   * Gets countries that the store ships to.
    *
    * @return array
    *   Array of shipping countries from Woocommerce.

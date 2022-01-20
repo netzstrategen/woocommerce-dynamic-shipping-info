@@ -51,24 +51,50 @@ class Plugin {
   /**
    * Determines the first matching shipping rule.
    *
+   * @param WC_Product $product
+   *   The product to check rules against.
+   *
    * @return string
-   *   The shipping rule text to be outputed.
+   *   The shipping info text to be outputed.
    */
   public static function get_product_dynamic_shipping_text(\WC_Product $product): string {
-    $dynmic_shipping_rules = Admin::get_sorted_by_price_dynamic_shipping_rules();
+    $dynmic_shipping_rules = Admin::get_dynamic_shipping_rules();
     $shipping_country = WC()->customer->get_shipping_country();
     $product_shipping_class = $product->get_shipping_class();
     $price = wc_get_price_to_display($product);
 
     foreach ($dynmic_shipping_rules as $dynamic_rule) {
-      if (in_array($shipping_country, $dynamic_rule['country'])
-      && $price >= $dynamic_rule['min_price']
-      && ((empty($product_shipping_class) || in_array($product_shipping_class, $dynamic_rule['shipping_class']) ))) {
-        return $dynamic_rule['shipping_info'];
-      }
-    }
+      // Check if shipping class is empty (no class) or if its defined in rules.
+      if (empty($dynamic_rule['shipping_class']) || in_array($product_shipping_class, $dynamic_rule['shipping_class'])) {
+        $sorted_shipping_rules = Plugin::get_sorted_by_price_shipping_rules($dynamic_rule['shipping_class_inner_rules']);
+        foreach ($sorted_shipping_rules as $shipping_rule) {
+          if (in_array($shipping_country, $shipping_rule['country']) && $price >= $shipping_rule['min_price']) {
+            return $shipping_rule['shipping_info'];
+          }
+        }
 
+      }
+
+    }
     return "";
+
+  }
+
+  /**
+   * Gets shipping class inner rules sorted by price.
+   *
+   * @param array $shipping_rules
+   *   Array of Shipping class inner rules.
+   *
+   * @return array
+   *   Sorted by price array of shipping class inner rules.
+   */
+  public static function get_sorted_by_price_shipping_rules($shipping_rules) {
+    usort($shipping_rules, function ($a, $b) {
+      return $b['min_price'] <=> $a['min_price'];
+    });
+    return $shipping_rules;
+
   }
 
   /**
