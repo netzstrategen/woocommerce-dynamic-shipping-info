@@ -125,17 +125,13 @@ class Admin {
   }
 
   /**
-   * Gets dynamic shipping info rules ordered by shipping class name.
+   * Gets dynamic shipping info rules.
    *
    * @return array
-   *   Array of defined dynamic shipping info rules ordered by shipping class name.
+   *   Array of defined dynamic shipping info rules.
    */
   public static function get_dynamic_shipping_rules() {
-    $dynamic_shipping_info_rule = get_field('dynamic_shipping_info_rule', 'option') ?: [];
-    usort($dynamic_shipping_info_rule, function ($a, $b) {
-      return $b['shipping_class'] <=> $a['shipping_class'];
-    });
-    return $dynamic_shipping_info_rule;
+    return get_field('dynamic_shipping_info_rule', 'option') ?: [];
   }
 
   /**

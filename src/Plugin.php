@@ -64,8 +64,8 @@ class Plugin {
     $price = wc_get_price_to_display($product);
 
     foreach ($dynmic_shipping_rules as $dynamic_rule) {
-      // Check if shipping class is empty (no class) or if its defined in rules.
-      if (empty($dynamic_rule['shipping_class']) || in_array($product_shipping_class, $dynamic_rule['shipping_class'])) {
+      // Check if both product rule have no shipping class or match.
+      if ((empty($dynamic_rule['shipping_class']) && empty($product_shipping_class)) || in_array($product_shipping_class, $dynamic_rule['shipping_class'])) {
         $sorted_shipping_rules = Plugin::get_sorted_by_price_shipping_rules($dynamic_rule['shipping_class_inner_rules']);
         foreach ($sorted_shipping_rules as $shipping_rule) {
           if (in_array($shipping_country, $shipping_rule['country']) && $price >= $shipping_rule['min_price']) {
