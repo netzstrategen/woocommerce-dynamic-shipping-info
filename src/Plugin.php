@@ -66,8 +66,13 @@ class Plugin {
     foreach ($dynmic_shipping_rules as $dynamic_rule) {
       // Check if both product rule have no shipping class or match.
       if ((empty($dynamic_rule['shipping_class']) && empty($product_shipping_class)) || in_array($product_shipping_class, $dynamic_rule['shipping_class'])) {
-        $sorted_shipping_rules = Plugin::get_sorted_by_price_shipping_rules($dynamic_rule['shipping_class_inner_rules']);
-        foreach ($sorted_shipping_rules as $shipping_rule) {
+
+        // Sort inner rules by prices descending.
+        usort($dynamic_rule['shipping_class_inner_rules'], function ($a, $b) {
+          return $b['min_price'] <=> $a['min_price'];
+        });
+
+        foreach ($dynamic_rule['shipping_class_inner_rules'] as $shipping_rule) {
           if (in_array($shipping_country, $shipping_rule['country']) && $price >= $shipping_rule['min_price']) {
             return $shipping_rule['shipping_info'];
           }
@@ -76,24 +81,7 @@ class Plugin {
       }
 
     }
-    return "";
-
-  }
-
-  /**
-   * Gets shipping class inner rules sorted by price.
-   *
-   * @param array $shipping_rules
-   *   Array of Shipping class inner rules.
-   *
-   * @return array
-   *   Sorted by price array of shipping class inner rules.
-   */
-  public static function get_sorted_by_price_shipping_rules($shipping_rules) {
-    usort($shipping_rules, function ($a, $b) {
-      return $b['min_price'] <=> $a['min_price'];
-    });
-    return $shipping_rules;
+    return '';
 
   }
 
