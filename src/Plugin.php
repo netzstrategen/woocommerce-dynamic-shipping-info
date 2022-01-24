@@ -22,19 +22,11 @@ class Plugin {
   const L10N = self::PREFIX;
 
   /**
-   * Number of price limit fields shown in settings.
-   *
-   * @var int
-   */
-  const LIMITS = 3;
-
-  /**
    * Plugin initialization method.
    *
    * @implements init
    */
   public static function init() {
-    add_filter('woocommerce_get_settings_dynamic_shipping_info', __NAMESPACE__ . '\Admin::woocommerce_get_settings_dynamic_shipping_info');
     if (is_plugin_active('woocommerce-german-market/WooCommerce-German-Market.php')) {
       add_filter('gm_get_shipping_page_link_return_string', __CLASS__ . '::gm_get_shipping_page_link_return_string', 10, 3);
     }
@@ -52,28 +44,45 @@ class Plugin {
       return $text;
     }
 
-    // If product level detail Alternative Shipping Information is not used then go through shop level rules.
-    $price = $product->get_price();
-    $previous_price_step = 0;
-    for ($i = 0; $i <= Plugin::LIMITS; $i++) {
-      $price_step = get_option('_' . Plugin::PREFIX . '_price_limit_step_' . ($i + 1));
-      $shipping_info = get_option('_' . Plugin::PREFIX . '_price_step_info_' . $i);
-      if ($i > 0) {
-        $previous_price_step = get_option('_' . Plugin::PREFIX . '_price_limit_step_' . $i);
-      }
-      if ($price_step) {
-        if ($price < $price_step && $price >= $previous_price_step) {
-          $text = $shipping_info ?: $text;
+    return self::get_product_dynamic_shipping_text($product);
+
+  }
+
+  /**
+   * Determines the first matching shipping rule.
+   *
+   * @param WC_Product $product
+   *   The product to check rules against.
+   *
+   * @return string
+   *   The shipping info text to be outputed.
+   */
+  public static function get_product_dynamic_shipping_text(\WC_Product $product): string {
+    $dynmic_shipping_rules = Admin::get_dynamic_shipping_rules();
+    $shipping_country = WC()->customer->get_shipping_country();
+    $product_shipping_class = $product->get_shipping_class();
+    $price = wc_get_price_to_display($product);
+
+    foreach ($dynmic_shipping_rules as $dynamic_rule) {
+      // Check if both product rule have no shipping class or match.
+      if ((empty($dynamic_rule['shipping_class']) && empty($product_shipping_class)) || in_array($product_shipping_class, $dynamic_rule['shipping_class'])) {
+
+        // Sort inner rules by prices descending.
+        usort($dynamic_rule['shipping_class_inner_rules'], function ($a, $b) {
+          return $b['min_price'] <=> $a['min_price'];
+        });
+
+        foreach ($dynamic_rule['shipping_class_inner_rules'] as $shipping_rule) {
+          if (in_array($shipping_country, $shipping_rule['country']) && $price >= $shipping_rule['min_price']) {
+            return $shipping_rule['shipping_info'];
+          }
         }
+
       }
-      else {
-        $price_step = get_option('_' . Plugin::PREFIX . '_price_limit_step_' . $i);
-        if ($price_step && $shipping_info && $price > $price_step) {
-          $text = $shipping_info;
-        }
-      }
+
     }
-    return $text;
+    return '';
+
   }
 
   /**
