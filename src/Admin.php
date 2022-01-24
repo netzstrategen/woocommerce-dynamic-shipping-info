@@ -139,7 +139,7 @@ class Admin {
    *   Array of shipping countries from Woocommerce.
    */
   public static function get_shipping_countries(): array {
-    return WC()->countries->get_shipping_countries() ?? [];
+    return WC()->countries->get_shipping_countries();
 
   }
 
