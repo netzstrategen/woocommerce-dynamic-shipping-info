@@ -38,13 +38,18 @@ class Plugin {
    * @implements gm_get_shipping_page_link_return_string
    */
   public static function gm_get_shipping_page_link_return_string($text, $product, $attributes) {
-    // Checks if Alternative Shipping Information is already filled at the product level (prefers to use product level detail).
     $wgm_fallback_shipping = sprintf(__('plus <a %s>shipping</a>', 'woocommerce-german-market'), implode(' ', $attributes));
-    if ($text !== $wgm_fallback_shipping) {
+    $customer = WC()->customer;
+
+    /** Checks if alternative shipping information is already filled at the
+     * product level (prefers to use product level detail)
+     * or if customer exists in woocommerce session.
+    */
+    if ($text !== $wgm_fallback_shipping || !$customer) {
       return $text;
     }
 
-    return self::get_product_dynamic_shipping_text($product);
+    return self::get_product_dynamic_shipping_text($product, $customer);
 
   }
 
@@ -53,13 +58,15 @@ class Plugin {
    *
    * @param WC_Product $product
    *   The product to check rules against.
+   * @param WC_Customer $customer
+   *   Current customer in session.
    *
    * @return string
    *   The shipping info text to be outputed.
    */
-  public static function get_product_dynamic_shipping_text(\WC_Product $product): string {
+  public static function get_product_dynamic_shipping_text(\WC_Product $product, \WC_Customer $customer): string {
     $dynmic_shipping_rules = Admin::get_dynamic_shipping_rules();
-    $shipping_country = WC()->customer->get_shipping_country();
+    $shipping_country = $customer->get_shipping_country();
     $product_shipping_class = $product->get_shipping_class();
     $price = wc_get_price_to_display($product);
 
