@@ -19,13 +19,143 @@ class Plugin {
    *
    * @var string
    */
-  const L10N = self::PREFIX;
+  const L10N = Plugin::PREFIX;
+
+  /**
+   * ACF Option field name containing all rules.
+   *
+   * @var string
+   */
+  const FIELD_SHIPPING_CLASS = Plugin::PREFIX . '-rules';
 
   /**
    * @implements init
    */
   public static function init() {
+    if (!is_callable('acf_add_local_field_group')) {
+      return;
+    }
+    Plugin::add_field_group();
     add_filter('gm_get_shipping_page_link_return_string', __CLASS__ . '::gm_get_shipping_page_link_return_string', 10, 3);
+  }
+
+  /**
+   * Adds plugin settings fields.
+   */
+  public static function add_field_group() {
+    acf_add_local_field_group(
+      [
+        'key' => Plugin::PREFIX . '_acf_field_group',
+        'title' => __('Rules', Plugin::L10N),
+        'fields' => [
+          [
+            'key' => 'rules',
+            'name' => Plugin::FIELD_SHIPPING_CLASS,
+            'type' => 'repeater',
+            'layout' => 'block',
+            'button_label' => __('Add shipping class', Plugin::L10N),
+            'sub_fields' => [
+              [
+                'key' => 'shipping_class',
+                'label' => __('Shipping Class', Plugin::L10N),
+                'instructions' => __('Leave empty to apply this rule to all products without shipping class.', Plugin::L10N),
+                'name' => 'shipping_class',
+                'type' => 'select',
+                'choices' => Plugin::get_shipping_classes(),
+                'default_value' => [],
+                'allow_null' => 0,
+                'multiple' => 1,
+                'ui' => 1,
+                'return_format' => 'value',
+              ],
+              [
+                'key' => 'conditions',
+                'label' => __('Conditions', Plugin::L10N),
+                'name' => 'conditions',
+                'type' => 'repeater',
+                'layout' => 'table',
+                'button_label' => __('Add rule', Plugin::L10N),
+                'sub_fields' => [
+                  [
+                    'key' => 'shipping_info',
+                    'label' => __('Shipping info text', Plugin::L10N),
+                    'name' => 'shipping_info',
+                    'type' => 'text',
+                    'required' => 1,
+                  ],
+                  [
+                    'key' => 'min_price',
+                    'label' => __('Minimum price', Plugin::L10N),
+                    'name' => 'min_price',
+                    'type' => 'number',
+                    'type' => 'number',
+                    'required' => 1,
+                  ],
+                  [
+                    'key' => 'country',
+                    'label' => __('Countries', Plugin::L10N),
+                    'name' => 'country',
+                    'type' => 'select',
+                    'choices' => Plugin::get_shipping_countries(),
+                    'default_value' => [],
+                    'allow_null' => 0,
+                    'multiple' => 1,
+                    'required' => 1,
+                    'ui' => 1,
+                    'return_format' => 'value',
+                  ],
+                  // @see https://www.advancedcustomfields.com/resources/register-fields-via-php/#relational
+                  [
+                    'key' => 'brands',
+                    'label' => __('Brands', Plugin::L10N),
+                    'name' => 'brands',
+                    'type' => 'taxonomy',
+                    'taxonomy' => apply_filters(Plugin::PREFIX . '/rule/brands/taxoomy', 'pa_marken'),
+                    'field_type' => 'multi_select',
+                    'allow_null' => 1,
+                    'required' => 0,
+                    'add_term' => 0,
+                    'return_format' => 'id',
+                  ],
+                ],
+              ],
+            ],
+          ],
+        ],
+        'location' => [
+          [
+            [
+              'param' => 'options_page',
+              'operator' => '==',
+              'value' => 'dynamic-shipping-info',
+            ],
+          ],
+        ],
+      ]
+    );
+  }
+
+  /**
+   * Gets countries that the store ships to.
+   *
+   * @return array
+   *   Array of shipping countries from Woocommerce.
+   */
+  public static function get_shipping_countries(): array {
+    return WC()->countries->get_shipping_countries();
+  }
+
+  /**
+   * Get array of slug and name value pair of Shipping classes.
+   *
+   * @return array
+   *   Array containing the slug and name of the shipping class.
+   */
+  public static function get_shipping_classes(): array {
+    return array_reduce(WC()->shipping->get_shipping_classes() ?? [], function ($result, $item) {
+      $result[$item->slug] = $item->name;
+      return $result;
+    }, []);
   }
 
   /**
@@ -43,7 +173,7 @@ class Plugin {
       return $text;
     }
 
-    return self::get_product_dynamic_shipping_text($product, $customer) ?: $wgm_fallback_shipping;
+    return Plugin::get_product_dynamic_shipping_text($product, $customer) ?: $wgm_fallback_shipping;
 
   }
 
@@ -66,21 +196,21 @@ class Plugin {
       return $cache[$product->get_id()];
     }
 
-    $dynmic_shipping_rules = Admin::get_dynamic_shipping_rules();
+    $rules = Plugin::getRules();
     $shipping_country = $customer->get_shipping_country();
     $product_shipping_class = $product->get_shipping_class();
     $price = wc_get_price_to_display($product);
-    $product_brands = wc_get_product_terms($product->get_id(), 'pa_marken', ['fields' => 'ids']);
+    $product_brands = wc_get_product_terms($product->get_id(), apply_filters(Plugin::PREFIX . '/rule/brands/taxonomy', 'pa_marken'), ['fields' => 'ids']);
 
     $cache[$product->get_id()] = '';
-    foreach ($dynmic_shipping_rules as $dynamic_rule) {
+    foreach ($rules as $rule) {
       // Only apply the rule if product has no shipping class or it matches.
-      if ((empty($dynamic_rule['shipping_class']) && empty($product_shipping_class)) || in_array($product_shipping_class, $dynamic_rule['shipping_class'], TRUE)) {
+      if ((empty($rule['shipping_class']) && empty($product_shipping_class)) || in_array($product_shipping_class, $rule['shipping_class'], TRUE)) {
         // Sort conditions by prices descending.
-        usort($dynamic_rule['conditions'], function ($a, $b) {
+        usort($rule['conditions'], function ($a, $b) {
           return $b['min_price'] <=> $a['min_price'];
         });
-        foreach ($dynamic_rule['conditions'] as $shipping_rule) {
+        foreach ($rule['conditions'] as $shipping_rule) {
           if ($price >= $shipping_rule['min_price']
             && in_array($shipping_country, $shipping_rule['country'], TRUE)
             && (empty($shipping_rule['brands']) || array_intersect($product_brands, $shipping_rule['brands']))) {
@@ -91,6 +221,16 @@ class Plugin {
       }
     }
     return $cache[$product->get_id()];
+  }
+
+  /**
+   * Gets dynamic shipping info rules.
+   *
+   * @return array
+   *   Array of defined dynamic shipping info rules.
+   */
+  public static function getRules(): array {
+    return get_field(Plugin::FIELD_SHIPPING_CLASS, 'option') ?: [];
   }
 
   /**
