@@ -74,13 +74,13 @@ class Plugin {
 
     $cache[$product->get_id()] = '';
     foreach ($dynmic_shipping_rules as $dynamic_rule) {
-      // Check if both product rule have no shipping class or match.
+      // Only apply the rule if product has no shipping class or it matches.
       if ((empty($dynamic_rule['shipping_class']) && empty($product_shipping_class)) || in_array($product_shipping_class, $dynamic_rule['shipping_class'], TRUE)) {
-        // Sort inner rules by prices descending.
-        usort($dynamic_rule['shipping_class_inner_rules'], function ($a, $b) {
+        // Sort conditions by prices descending.
+        usort($dynamic_rule['conditions'], function ($a, $b) {
           return $b['min_price'] <=> $a['min_price'];
         });
-        foreach ($dynamic_rule['shipping_class_inner_rules'] as $shipping_rule) {
+        foreach ($dynamic_rule['conditions'] as $shipping_rule) {
           if ($price >= $shipping_rule['min_price']
             && in_array($shipping_country, $shipping_rule['country'], TRUE)
             && (empty($shipping_rule['brands']) || array_intersect($product_brands, $shipping_rule['brands']))) {
