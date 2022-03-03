@@ -22,14 +22,10 @@ class Plugin {
   const L10N = self::PREFIX;
 
   /**
-   * Plugin initialization method.
-   *
    * @implements init
    */
   public static function init() {
-    if (is_plugin_active('woocommerce-german-market/WooCommerce-German-Market.php')) {
-      add_filter('gm_get_shipping_page_link_return_string', __CLASS__ . '::gm_get_shipping_page_link_return_string', 10, 3);
-    }
+    add_filter('gm_get_shipping_page_link_return_string', __CLASS__ . '::gm_get_shipping_page_link_return_string', 10, 3);
   }
 
   /**
@@ -41,15 +37,13 @@ class Plugin {
     $wgm_fallback_shipping = sprintf(__('plus <a %s>shipping</a>', 'woocommerce-german-market'), implode(' ', $attributes));
     $customer = WC()->customer;
 
-    /** Checks if alternative shipping information is already filled at the
-     * product level (prefers to use product level detail)
-     * or if customer exists in woocommerce session.
-    */
+    // Do not override the shipping info if specific shipping info has been set
+    // for the product or after the customer entered address data in checkout.
     if ($text !== $wgm_fallback_shipping || !$customer) {
       return $text;
     }
 
-    return self::get_product_dynamic_shipping_text($product, $customer);
+    return self::get_product_dynamic_shipping_text($product, $customer) ?: $wgm_fallback_shipping;
 
   }
 
@@ -65,31 +59,38 @@ class Plugin {
    *   The shipping info text to be outputed.
    */
   public static function get_product_dynamic_shipping_text(\WC_Product $product, \WC_Customer $customer): string {
+    static $cache = [];
+
+    // This code path is invoked 7 times (per variant) on a product detail page.
+    if (isset($cache[$product->get_id()])) {
+      return $cache[$product->get_id()];
+    }
+
     $dynmic_shipping_rules = Admin::get_dynamic_shipping_rules();
     $shipping_country = $customer->get_shipping_country();
     $product_shipping_class = $product->get_shipping_class();
     $price = wc_get_price_to_display($product);
+    $product_brands = wc_get_product_terms($product->get_id(), 'pa_marken', ['fields' => 'ids']);
 
+    $cache[$product->get_id()] = '';
     foreach ($dynmic_shipping_rules as $dynamic_rule) {
       // Check if both product rule have no shipping class or match.
-      if ((empty($dynamic_rule['shipping_class']) && empty($product_shipping_class)) || in_array($product_shipping_class, $dynamic_rule['shipping_class'])) {
-
+      if ((empty($dynamic_rule['shipping_class']) && empty($product_shipping_class)) || in_array($product_shipping_class, $dynamic_rule['shipping_class'], TRUE)) {
         // Sort inner rules by prices descending.
         usort($dynamic_rule['shipping_class_inner_rules'], function ($a, $b) {
           return $b['min_price'] <=> $a['min_price'];
         });
-
         foreach ($dynamic_rule['shipping_class_inner_rules'] as $shipping_rule) {
-          if (in_array($shipping_country, $shipping_rule['country']) && $price >= $shipping_rule['min_price']) {
-            return $shipping_rule['shipping_info'];
+          if ($price >= $shipping_rule['min_price']
+            && in_array($shipping_country, $shipping_rule['country'], TRUE)
+            && (empty($shipping_rule['brands']) || array_intersect($product_brands, $shipping_rule['brands']))) {
+            $cache[$product->get_id()] = $shipping_rule['shipping_info'];
+            break 2;
           }
         }
-
       }
-
     }
-    return '';
-
+    return $cache[$product->get_id()];
   }
 
   /**

@@ -12,10 +12,10 @@ namespace Netzstrategen\WoocommerceDynamicShippingInfo;
  */
 class Admin {
 
-  const FIELD_SHIPPING_CLASS = Plugin::PREFIX . '_dynamic_shipping_info_rules';
+  const FIELD_SHIPPING_CLASS = Plugin::PREFIX . '-rules';
 
   /**
-   * Plugin backend initialization method.
+   * @implements admin_init
    */
   public static function init() {
     self::add_options_page();
@@ -26,40 +26,36 @@ class Admin {
    * Adds plugin settings page.
    */
   public static function add_options_page() {
-
-    acf_add_options_page(
-      [
-        'page_title' => __('Dynamic Shipping Info', Plugin::L10N),
-        'menu_title' => __('Dynamic Shipping Info', Plugin::L10N),
-        'menu_slug' => 'dynamic-shipping-info',
-        'capability' => 'edit_posts',
-        'redirect' => FALSE,
-        'parent_slug' => 'woocommerce',
-      ]
-    );
+    acf_add_options_page([
+      'page_title' => __('Dynamic Shipping Info', Plugin::L10N),
+      'menu_title' => __('Dynamic Shipping Info', Plugin::L10N),
+      'menu_slug' => 'dynamic-shipping-info',
+      'capability' => 'edit_posts',
+      'redirect' => FALSE,
+      'parent_slug' => 'woocommerce',
+    ]);
   }
 
   /**
    * Adds plugin settings fields.
    */
   public static function add_field_group() {
-
     acf_add_local_field_group(
       [
-        'key' => Plugin::PREFIX . "_acf_field_group",
-        'title' => __('Dynamic Shipping Info', Plugin::L10N),
+        'key' => Plugin::PREFIX . '_acf_field_group',
+        'title' => __('Rules', Plugin::L10N),
         'fields' => [
           [
-            'key' => 'dynamic_shipping_info_rules',
+            'key' => 'rules',
             'name' => self::FIELD_SHIPPING_CLASS,
             'type' => 'repeater',
             'layout' => 'block',
-            'button_label' => __('Add new dynamic shipping info rule', Plugin::L10N),
+            'button_label' => __('Add shipping class', Plugin::L10N),
             'sub_fields' => [
               [
                 'key' => 'shipping_class',
                 'label' => __('Shipping Class', Plugin::L10N),
-                'instructions' => __('Leave empty if you want this rule to apply for all products without a shipping class asigned.', Plugin::L10N),
+                'instructions' => __('Leave empty to apply this rule to all products without shipping class.', Plugin::L10N),
                 'name' => 'shipping_class',
                 'type' => 'select',
                 'choices' => self::get_shipping_classes(),
@@ -70,12 +66,12 @@ class Admin {
                 'return_format' => 'value',
               ],
               [
-                'key' => 'shipping_class_inner_rules',
-                'label' => __('Shipping Class Inner Rules', Plugin::L10N),
-                'name' => 'shipping_class_inner_rules',
+                'key' => 'conditions',
+                'label' => __('Conditions', Plugin::L10N),
+                'name' => 'conditions',
                 'type' => 'repeater',
-                'layout' => 'block',
-                'button_label' => 'Add rule',
+                'layout' => 'table',
+                'button_label' => __('Add condition', Plugin::L10N),
                 'sub_fields' => [
                   [
                     'key' => 'shipping_info',
@@ -86,7 +82,7 @@ class Admin {
                   ],
                   [
                     'key' => 'min_price',
-                    'label' => __('Min price', Plugin::L10N),
+                    'label' => __('Minimum price', Plugin::L10N),
                     'name' => 'min_price',
                     'type' => 'number',
                     'required' => 1,
@@ -103,6 +99,19 @@ class Admin {
                     'required' => 1,
                     'ui' => 1,
                     'return_format' => 'value',
+                  ],
+                  // @see https://www.advancedcustomfields.com/resources/register-fields-via-php/#relational
+                  [
+                    'key' => 'brands',
+                    'label' => __('Brands', Plugin::L10N),
+                    'name' => 'brands',
+                    'type' => 'taxonomy',
+                    'taxonomy' => apply_filters(Plugin::PREFIX . '/rule/brands/taxoomy', 'pa_marken'),
+                    'field_type' => 'multi_select',
+                    'allow_null' => 1,
+                    'required' => 0,
+                    'add_term' => 0,
+                    'return_format' => 'id',
                   ],
                 ],
               ],
@@ -128,7 +137,7 @@ class Admin {
    * @return array
    *   Array of defined dynamic shipping info rules.
    */
-  public static function get_dynamic_shipping_rules() {
+  public static function get_dynamic_shipping_rules(): array {
     return get_field(self::FIELD_SHIPPING_CLASS, 'option') ?: [];
   }
 
@@ -140,7 +149,6 @@ class Admin {
    */
   public static function get_shipping_countries(): array {
     return WC()->countries->get_shipping_countries();
-
   }
 
   /**
@@ -154,7 +162,6 @@ class Admin {
       $result[$item->slug] = $item->name;
       return $result;
     }, []);
-
   }
 
 }
