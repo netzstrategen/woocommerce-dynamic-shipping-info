@@ -71,7 +71,7 @@ class Admin {
                 'name' => 'conditions',
                 'type' => 'repeater',
                 'layout' => 'table',
-                'button_label' => __('Add condition', Plugin::L10N),
+                'button_label' => __('Add rule', Plugin::L10N),
                 'sub_fields' => [
                   [
                     'key' => 'shipping_info',
