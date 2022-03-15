@@ -29,6 +29,13 @@ class Plugin {
   const FIELD_SHIPPING_CLASS = Plugin::PREFIX . '-rules';
 
   /**
+   * The actual product (variation) currently processed by WGM_Shipping.
+   *
+   * @var WC_Product
+   */
+  private static $product;
+
+  /**
    * @implements init
    */
   public static function init() {
@@ -36,6 +43,8 @@ class Plugin {
       return;
     }
     Plugin::add_field_group();
+
+    add_action('wgm_before_shipping_fee_single', __CLASS__ . '::wgm_before_shipping_fee_single');
     add_filter('gm_get_shipping_page_link_return_string', __CLASS__ . '::gm_get_shipping_page_link_return_string', 10, 3);
   }
 
@@ -159,6 +168,19 @@ class Plugin {
   }
 
   /**
+   * Stores currently processed product for gm_get_shipping_page_link_return_string.
+   *
+   * For variations, WGM_Shipping::get_shipping_page_link() replaces the passed
+   * $product with its parent product before invoking the filter
+   * gm_get_shipping_page_link_return_string.
+   *
+   * @implements wgm_before_shipping_fee_single
+   */
+  public static function wgm_before_shipping_fee_single($product) {
+    static::$product = $product;
+  }
+
+  /**
    * Overwrites WGM default shipping info according to price range steps.
    *
    * @implements gm_get_shipping_page_link_return_string
@@ -173,8 +195,7 @@ class Plugin {
       return $text;
     }
 
-    return Plugin::get_product_dynamic_shipping_text($product, $customer) ?: $wgm_fallback_shipping;
-
+    return Plugin::get_product_dynamic_shipping_text(static::$product, $customer) ?: $wgm_fallback_shipping;
   }
 
   /**
@@ -191,7 +212,7 @@ class Plugin {
   public static function get_product_dynamic_shipping_text(\WC_Product $product, \WC_Customer $customer): string {
     static $cache = [];
 
-    // This code path is invoked 7 times (per variant) on a product detail page.
+    // This code path is invoked twice per variant on a product detail page.
     if (isset($cache[$product->get_id()])) {
       return $cache[$product->get_id()];
     }
@@ -200,7 +221,8 @@ class Plugin {
     $shipping_country = $customer->get_shipping_country();
     $product_shipping_class = $product->get_shipping_class();
     $price = wc_get_price_to_display($product);
-    $product_brands = wc_get_product_terms($product->get_id(), apply_filters(Plugin::PREFIX . '/rule/brands/taxonomy', 'pa_marken'), ['fields' => 'ids']);
+    $parent_product_id = $product->get_type() === 'variation' ? $product->get_parent_id() : $product->get_id();
+    $product_brands = wc_get_product_terms($parent_product_id, apply_filters(Plugin::PREFIX . '/rule/brands/taxonomy', 'pa_marken'), ['fields' => 'ids']);
 
     $cache[$product->get_id()] = '';
     foreach ($rules as $rule) {
