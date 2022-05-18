@@ -15,7 +15,7 @@ class WooFeed {
   /**
    * Adds shipping_info to available product feed attributes.
    *
-   * @return array
+   * @implements woo_feed_product_attribute_dropdown
    */
   public static function woo_feed_product_attribute_dropdown($attributes): array {
     $group_id = 60;
@@ -30,8 +30,6 @@ class WooFeed {
 
   /**
    * Generates a product feed value for attribute 'dynamic_shipping_info'.
-   *
-   * @return string
    *
    * @implements woo_feed_get_{$attribute}_attribute
    */
