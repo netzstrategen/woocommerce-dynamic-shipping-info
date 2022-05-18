@@ -3,7 +3,7 @@
 namespace Netzstrategen\WoocommerceDynamicShippingInfo;
 
 /**
- * Integration with Webappick Product Feeds / CTX Feed plugin.
+ * Integration with Webappick Product Feed / CTX Feed plugin.
  *
  * Test feed generation on command line:
  * ```
