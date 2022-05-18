@@ -33,8 +33,6 @@ function classloader($class) {
 
 spl_autoload_register(__NAMESPACE__ . '\classloader');
 
-require_once __DIR__ . '/functions.php';
-
 register_activation_hook(__FILE__, __NAMESPACE__ . '\Schema::activate');
 register_deactivation_hook(__FILE__, __NAMESPACE__ . '\Schema::deactivate');
 register_uninstall_hook(__FILE__, __NAMESPACE__ . '\Schema::uninstall');
