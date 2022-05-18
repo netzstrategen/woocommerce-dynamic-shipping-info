@@ -1,0 +1,45 @@
+<?php
+
+namespace Netzstrategen\WoocommerceDynamicShippingInfo;
+
+/**
+ * Integration with Webappick Product Feeds / CTX Feed plugin.
+ *
+ * Test feed generation on command line:
+ * ```
+ * wp eval '$name = "wf_config" . "google_de"; $config = get_option($name); woo_feed_generate_feed($config, $name);'
+ * ```
+ */
+class WooFeed {
+
+  /**
+   * Adds shipping_info to available product feed attributes.
+   *
+   * @return array
+   */
+  public static function woo_feed_product_attribute_dropdown($attributes): array {
+    $group_id = 60;
+    while (isset($attributes['--' . $group_id])) {
+      $group_id++;
+    }
+    $attributes["--$group_id"] = 'Dynamic Shipping Info';
+    $attributes['dynamic_shipping_info'] = 'Dynamic Shipping Info';
+    $attributes["---$group_id"] = '';
+    return $attributes;
+  }
+
+  /**
+   * Generates a product feed value for attribute 'dynamic_shipping_info'.
+   *
+   * @return string
+   *
+   * @implements woo_feed_get_{$attribute}_attribute
+   */
+  public static function woo_feed_get_dynamic_shipping_info_attribute($output, $product, $config): string {
+    $shipping_country = $config['feed_country'] ?? '';
+    $customer = new \WC_Customer();
+    $customer->set_shipping_country($shipping_country);
+    return Plugin::get_product_dynamic_shipping_text($product, $customer);
+  }
+
+}
