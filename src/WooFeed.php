@@ -17,7 +17,7 @@ class WooFeed {
    *
    * @implements woo_feed_product_attribute_dropdown
    */
-  public static function woo_feed_product_attribute_dropdown($attributes): array {
+  public static function woo_feed_product_attribute_dropdown(array $attributes): array {
     $group_id = 60;
     while (isset($attributes['--' . $group_id])) {
       $group_id++;
@@ -33,7 +33,7 @@ class WooFeed {
    *
    * @implements woo_feed_get_{$attribute}_attribute
    */
-  public static function woo_feed_get_dynamic_shipping_info_attribute($output, $product, $config): string {
+  public static function woo_feed_get_dynamic_shipping_info_attribute(string $output, \WC_Product $product, array $config): string {
     $shipping_country = $config['feed_country'] ?? '';
     $customer = new \WC_Customer();
     $customer->set_shipping_country($shipping_country);
