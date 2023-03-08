@@ -46,10 +46,6 @@ class Plugin {
 
     add_action('wgm_before_shipping_fee_single', __CLASS__ . '::wgm_before_shipping_fee_single');
     add_filter('gm_get_shipping_page_link_return_string', __CLASS__ . '::gm_get_shipping_page_link_return_string', 10, 3);
-
-    // Expose shipping info to webappick-product-feed-for-woocommerce plugin.
-    add_filter('woo_feed_product_attribute_dropdown', __NAMESPACE__ . '\WooFeed::woo_feed_product_attribute_dropdown', 100);
-    add_filter('woo_feed_get_dynamic_shipping_info_attribute', __NAMESPACE__ . '\WooFeed::woo_feed_get_dynamic_shipping_info_attribute', 10, 3);
   }
 
   /**
