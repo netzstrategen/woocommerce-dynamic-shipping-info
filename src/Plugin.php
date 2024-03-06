@@ -211,20 +211,20 @@ class Plugin {
    */
   public static function get_product_dynamic_shipping_text(\WC_Product $product, \WC_Customer $customer): string {
     static $cache = [];
-
+    $shipping_country = $customer->get_shipping_country();
     // This code path is invoked twice per variant on a product detail page.
-    if (isset($cache[$product->get_id()])) {
-      return $cache[$product->get_id()];
+    if (isset($cache[$shipping_country][$product->get_id()])) {
+      return $cache[$shipping_country][$product->get_id()];
     }
 
     $rules = Plugin::getRules();
-    $shipping_country = $customer->get_shipping_country();
+
     $product_shipping_class = $product->get_shipping_class();
     $price = wc_get_price_to_display($product);
     $parent_product_id = $product->get_type() === 'variation' ? $product->get_parent_id() : $product->get_id();
     $product_brands = wc_get_product_terms($parent_product_id, apply_filters(Plugin::PREFIX . '/rule/brands/taxonomy', 'pa_marken'), ['fields' => 'ids']);
 
-    $cache[$product->get_id()] = '';
+    $cache[$shipping_country][$product->get_id()] = '';
     foreach ($rules as $rule) {
       // Only apply the rule if product has no shipping class or it matches.
       if ((empty($rule['shipping_class']) && empty($product_shipping_class)) || in_array($product_shipping_class, $rule['shipping_class'], TRUE)) {
@@ -236,13 +236,13 @@ class Plugin {
           if ($price >= $shipping_rule['min_price']
             && in_array($shipping_country, $shipping_rule['country'], TRUE)
             && (empty($shipping_rule['brands']) || array_intersect($product_brands, $shipping_rule['brands']))) {
-            $cache[$product->get_id()] = $shipping_rule['shipping_info'];
+            $cache[$shipping_country][$product->get_id()] = $shipping_rule['shipping_info'];
             break 2;
           }
         }
       }
     }
-    return $cache[$product->get_id()];
+    return $cache[$shipping_country][$product->get_id()];
   }
 
   /**
